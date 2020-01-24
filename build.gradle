@@ -1,0 +1,35 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group 'io.sisu'
+version '0.1.0-SNAPSHOT'
+description 'Using PaySim, populates a graph in a target Neo4j graph database'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+repositories {
+    mavenLocal()
+    jcenter()
+}
+
+dependencies {
+    implementation 'org.paysim:paysim:2.1.0-SNAPSHOT'
+    implementation 'org.neo4j.driver:neo4j-java-driver:4.0.0'
+    implementation 'org.slf4j:slf4j-simple:1.7.30'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.4.2'
+}
+
+application {
+    // Define the main class for the application
+    mainClassName = 'io.sisu.paysim.App'
+}
+
+test {
+    // Use junit platform for unit tests
+    useJUnitPlatform()
+}
