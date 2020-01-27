@@ -25,8 +25,8 @@ public class Cypher {
     };
 
     public static final String INSERT_TRANSACTION_QUERY = String.join("\n", new String[] {
-            "MERGE (s:" + SENDER_LABEL_PLACEHOLDER + " { id: $senderId }) ON CREATE SET s.name = $senderName",
-            "MERGE (r:" + RECEIVER_LABEL_PLACEHOLDER + " { id: $receiverId }) ON CREATE SET r.name = $receiverName",
+            "MERGE (s:" + SENDER_LABEL_PLACEHOLDER + " { id: $senderId })",
+            "MERGE (r:" + RECEIVER_LABEL_PLACEHOLDER + " { id: $receiverId })",
             "CREATE (tx:Transaction:" + TX_LABEL_PLACEHOLDER + " { id: $txId })",
             "SET tx.ts = $ts, tx.amount = $amount, tx.fraud = $fraud,",
             "    tx.step = $step, tx.globalStep = $globalStep",

@@ -48,6 +48,16 @@ public class App {
                 logger.info(String.format("estimated load rate: %.2f paysim-transactions/second",
                         (float) atom.get() / Util.toSeconds(Duration.between(start, ZonedDateTime.now()))));
 
+                // Update any client properties in batch transactions
+                Lists.partition(sim.getClients(), 100).forEach(chunk -> {
+                    final String qs = "MERGE (c:Client {id: $id}) ON MATCH SET c += $props";
+                    try (final Session session = driver.session()) {
+                        chunk.forEach(c -> {
+                            session.writeTransaction(tx -> tx.run(qs, Values.parameters("id", c.getId(), "props", c.getProperties())));
+                        });
+                    }
+                });
+
                 // Time to thread transactions into chains...
                 logger.info("->-> Threading transactions... ->->");
                 driver.session().run(Cypher.MAKE_MULES_CLIENTS);
