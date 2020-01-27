@@ -12,13 +12,15 @@ targetCompatibility = 1.8
 
 allprojects {
     repositories {
+        mavenLocal()
         jcenter()
         maven { url 'https://jitpack.io' }
     }
 }
 
 dependencies {
-    implementation 'com.github.voutilad:paysim:master-SNAPSHOT'
+    //implementation 'com.github.voutilad:paysim:2fdc31b591'
+    implementation 'org.paysim:paysim:2.1.0-SNAPSHOT'
     implementation 'org.neo4j.driver:neo4j-java-driver:4.0.0'
     implementation 'org.slf4j:slf4j-simple:1.7.30'
 
