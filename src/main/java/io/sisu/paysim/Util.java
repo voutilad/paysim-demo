@@ -1,6 +1,8 @@
 package io.sisu.paysim;
 
 import org.neo4j.driver.Query;
+import org.neo4j.driver.Values;
+import org.paysim.actors.SuperActor;
 import org.paysim.base.Transaction;
 
 import java.time.Duration;
@@ -42,6 +44,15 @@ public class Util {
         Map<String, Object> props = propsFromTx(t);
 
         return new Query(rawQ, props);
+    }
+
+    public static Query compilePropertyUpdateQuery(SuperActor actor) {
+        final String label = capitalize(actor.getType().toString());
+        return new Query(
+                Cypher.UPDATE_NODE_PROPS.replace(Cypher.LABEL_PLACEHOLDER, label),
+                Values.parameters(
+                        "id", actor.getId(),
+                        "props", actor.getProperties()));
     }
 
     /**

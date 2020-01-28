@@ -21,7 +21,13 @@ public class Database {
                     .withLogging(Logging.slf4j()).build();
 
     public static Driver connect(Config config, String username, String password) {
-        return GraphDatabase.driver("bolt://localhost:7687",  AuthTokens.basic(username, password), config);
+        Driver driver = null;
+        try {
+            driver = GraphDatabase.driver("bolt://localhost:7687",  AuthTokens.basic(username, password), config);
+        } catch (Exception e) {
+            logger.error("Failed to initialize bolt connection to Neo4j", e);
+        }
+        return driver;
     }
 
     public static void enforcePaySimSchema(Driver driver) {

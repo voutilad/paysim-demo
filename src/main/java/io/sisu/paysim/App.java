@@ -1,16 +1,22 @@
 package io.sisu.paysim;
 
 import com.google.common.collect.Lists;
-import org.neo4j.driver.*;
+import com.google.common.collect.Streams;
+import org.neo4j.driver.Driver;
+import org.neo4j.driver.Query;
+import org.neo4j.driver.Values;
 import org.paysim.IteratingPaySim;
+import org.paysim.actors.SuperActor;
 import org.paysim.parameters.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 public class App {
     protected static final Logger logger = LoggerFactory.getLogger(App.class);
@@ -44,26 +50,31 @@ public class App {
                 if (batch.size() > 0) {
                     atom.addAndGet(Database.executeBatch(driver, batch));
                 }
-                logger.info(String.format("loaded %d paysim transactions", atom.get()));
-                logger.info(String.format("estimated load rate: %.2f paysim-transactions/second",
+                logger.info(String.format("loaded %d PaySim transactions", atom.get()));
+                logger.info(String.format("estimated load rate: %.2f PaySim-transactions/second",
                         (float) atom.get() / Util.toSeconds(Duration.between(start, ZonedDateTime.now()))));
 
-                // Update any client properties in batch transactions
-                Lists.partition(sim.getClients(), 100).forEach(chunk -> {
-                    final String qs = "MERGE (c:Client {id: $id}) ON MATCH SET c += $props";
-                    try (final Session session = driver.session()) {
-                        chunk.forEach(c -> {
-                            session.writeTransaction(tx -> tx.run(qs, Values.parameters("id", c.getId(), "props", c.getProperties())));
+                logger.info("Setting extra node properties...");
+                List<SuperActor> allActors = Streams.concat(
+                        sim.getClients().stream(),
+                        sim.getMerchants().stream(),
+                        sim.getFraudsters().stream(),
+                        sim.getBanks().stream()).collect(Collectors.toList());
+
+                Lists.partition(allActors, BATCH_SIZE)
+                        .forEach(chunk -> {
+                            List<Query> queries = chunk.stream()
+                                    .map(actor -> Util.compilePropertyUpdateQuery(actor))
+                                    .collect(Collectors.toList());
+                            Database.executeBatch(driver, queries);
                         });
-                    }
-                });
 
                 // Time to thread transactions into chains...
                 logger.info("->-> Threading transactions... ->->");
                 driver.session().run(Cypher.MAKE_MULES_CLIENTS);
                 final List<String> ids = Database.getClientIds(driver);
 
-                Lists.partition(ids, 100).forEach(chunk -> {
+                Lists.partition(ids, BATCH_SIZE).forEach(chunk -> {
                     Query query = new Query(Cypher.THREAD_TRANSACTIONS_IN_BATCH, Values.parameters("ids", chunk));
                     Database.execute(driver, query);
                 });
