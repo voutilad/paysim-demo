@@ -35,7 +35,7 @@ public class App {
 
             try {
                 sim.run();
-                logger.info("Simulation started, load commencing...please, be patient :-)");
+                logger.info("Simulation started, load commencing...please, be patient! :-)");
                 // Batch up Queries based on our Transaction stream for execution
                 sim.forEachRemaining(t -> {
                     batch.add(Util.compileTransactionQuery(t));
@@ -50,17 +50,26 @@ public class App {
                 if (batch.size() > 0) {
                     atom.addAndGet(Database.executeBatch(driver, batch));
                 }
-                logger.info(String.format("loaded %d PaySim transactions", atom.get()));
-                logger.info(String.format("estimated load rate: %.2f PaySim-transactions/second",
+                logger.info(String.format("[loaded %d PaySim transactions]", atom.get()));
+                logger.info(String.format("[estimated load rate: %.2f PaySim-transactions/second]",
                         (float) atom.get() / Util.toSeconds(Duration.between(start, ZonedDateTime.now()))));
 
-                logger.info("Setting extra node properties...");
-                List<SuperActor> allActors = Streams.concat(
-                        sim.getClients().stream(),
-                        sim.getMerchants().stream(),
-                        sim.getFraudsters().stream(),
-                        sim.getBanks().stream()).collect(Collectors.toList());
+                logger.info("Labeling all Mules as Clients...");
+                driver.session().run(Cypher.MAKE_MULES_CLIENTS);
 
+                logger.info("Creating 'identity' materials associated with Client accounts...");
+                Lists.partition(sim.getClients(), BATCH_SIZE)
+                        .forEach(chunk -> {
+                            List<Query> queries = chunk.stream()
+                                    .map(client -> Util.compileClientIdentityQuery(client.getClientIdentity()))
+                                    .collect(Collectors.toList());
+                            Database.executeBatch(driver, queries);
+                        });
+
+                logger.info("Setting any extra node properties for Merchants and Banks...");
+                List<SuperActor> allActors = Streams.concat(
+                        sim.getMerchants().stream(),
+                        sim.getBanks().stream()).collect(Collectors.toList());
                 Lists.partition(allActors, BATCH_SIZE)
                         .forEach(chunk -> {
                             List<Query> queries = chunk.stream()
@@ -69,28 +78,24 @@ public class App {
                             Database.executeBatch(driver, queries);
                         });
 
-                // Time to thread transactions into chains...
-                logger.info("->-> Threading transactions... ->->");
-                driver.session().run(Cypher.MAKE_MULES_CLIENTS);
+                logger.info("Threading transactions...");
                 final List<String> ids = Database.getClientIds(driver);
-
                 Lists.partition(ids, BATCH_SIZE).forEach(chunk -> {
                     Query query = new Query(Cypher.THREAD_TRANSACTIONS_IN_BATCH, Values.parameters("ids", chunk));
                     Database.execute(driver, query);
                 });
-                logger.info("->-> Threading complete. ->->");
 
             } catch (Exception e) {
-                logger.error("exception while loading data", e);
+                logger.error("EXCEPTION while loading data", e);
                 try {
                     sim.abort();
                 } catch (IllegalStateException ise) {
-                    logger.warn("sim already aborted");
+                    logger.warn("sim already aborted!");
                 }
             }
         }
 
         Duration delta = Duration.between(start, ZonedDateTime.now());
-        logger.info(String.format("completed in %dm %ds", delta.toMinutes(), Util.toSecondsPart(delta)));
+        logger.info(String.format("Simulation & Load COMPLETED in %dm %ds", delta.toMinutes(), Util.toSecondsPart(delta)));
     }
 }

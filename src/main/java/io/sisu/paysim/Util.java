@@ -2,8 +2,10 @@ package io.sisu.paysim;
 
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Values;
+import org.paysim.actors.Properties;
 import org.paysim.actors.SuperActor;
 import org.paysim.base.Transaction;
+import org.paysim.identity.ClientIdentity;
 
 import java.time.Duration;
 import java.util.Arrays;
@@ -48,11 +50,27 @@ public class Util {
 
     public static Query compilePropertyUpdateQuery(SuperActor actor) {
         final String label = capitalize(actor.getType().toString());
+
+        // TODO: right now we're shoving id into the Identity, so to prevent collision remove it...yes this is wasteful
+        final Map<String, String> props = actor.getIdentityAsMap();
+        props.remove(Properties.ID);
+
         return new Query(
                 Cypher.UPDATE_NODE_PROPS.replace(Cypher.LABEL_PLACEHOLDER, label),
+                Values.parameters("id", actor.getId(), "props", props));
+    }
+
+    public static Query compileClientIdentityQuery(ClientIdentity identity) {
+        return new Query(
+                Cypher.CREATE_IDENTITY,
                 Values.parameters(
-                        "id", actor.getId(),
-                        "props", actor.getProperties()));
+                        "ssn", identity.ssn,
+                        "email", identity.email,
+                        "name", identity.name,
+                        "phoneNumber", identity.phoneNumber,
+                        "clientId", identity.id
+                )
+        );
     }
 
     /**
