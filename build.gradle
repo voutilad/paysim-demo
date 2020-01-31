@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'io.sisu'
-version '0.1.0-SNAPSHOT'
+version '0.1.0'
 description 'Using PaySim, populates a graph in a target Neo4j graph database'
 
 sourceCompatibility = 1.8
@@ -19,8 +19,7 @@ allprojects {
 }
 
 dependencies {
-    //implementation 'com.github.voutilad:paysim:2fdc31b591'
-    implementation 'org.paysim:paysim:2.1.0-SNAPSHOT'
+    implementation 'com.github.voutilad:paysim:2.1.0'
     implementation 'org.neo4j.driver:neo4j-java-driver:4.0.0'
     implementation 'org.slf4j:slf4j-simple:1.7.30'
 
@@ -29,11 +28,9 @@ dependencies {
 }
 
 application {
-    // Define the main class for the application
     mainClassName = 'io.sisu.paysim.App'
 }
 
 test {
-    // Use junit platform for unit tests
     useJUnitPlatform()
 }
