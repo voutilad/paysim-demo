@@ -2,10 +2,10 @@ package io.sisu.paysim;
 
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Values;
-import org.paysim.actors.Properties;
 import org.paysim.actors.SuperActor;
 import org.paysim.base.Transaction;
 import org.paysim.identity.ClientIdentity;
+import org.paysim.identity.Properties;
 
 import java.time.Duration;
 import java.util.Arrays;
