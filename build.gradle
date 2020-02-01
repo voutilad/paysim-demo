@@ -21,6 +21,7 @@ allprojects {
 dependencies {
     implementation 'com.github.voutilad:paysim:2.1.0'
     implementation 'org.neo4j.driver:neo4j-java-driver:4.0.0'
+    implementation 'net.sourceforge.argparse4j:argparse4j:0.8.1'
     implementation 'org.slf4j:slf4j-simple:1.7.30'
 
     testImplementation 'org.junit.jupiter:junit-jupiter-api:5.4.2'
@@ -30,6 +31,23 @@ dependencies {
 application {
     mainClassName = 'io.sisu.paysim.App'
 }
+
+task packagePaySimProperties(type: Copy) {
+    from '.'
+    include 'PaySim.properties'
+    include 'paramFiles/**'
+    into "$buildDir/paysimprops"
+}
+distributions {
+    main {
+        contents {
+            from "$buildDir/paysimprops"
+        }
+    }
+}
+
+distZip.dependsOn(packagePaySimProperties)
+distTar.dependsOn(packagePaySimProperties)
 
 test {
     useJUnitPlatform()
