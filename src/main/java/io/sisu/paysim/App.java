@@ -31,21 +31,21 @@ public class App {
                 .build()
                 .defaultHelp(true)
                 .description("Builds a virtual mobile money network graph in Neo4j");
-        parser.addArgument(Config.KEY_PROPERTIES_FILE)
+        parser.addArgument("--" + Config.KEY_PROPERTIES_FILE)
                 .help("PaySim properties file (with paramFiles adjacent in same dir)")
                 .setDefault(Config.DEFAULT_PROPERTIES_FILE);
-        parser.addArgument(Config.KEY_BOLT_URI)
+        parser.addArgument("--" + Config.KEY_BOLT_URI)
                 .help("Bolt URI to target Neo4j database")
                 .setDefault(Config.DEFAULT_BOLT_URI);
-        parser.addArgument(Config.KEY_USERNAME).setDefault(Config.DEFAULT_USERNAME);
-        parser.addArgument(Config.KEY_PASSWORD).setDefault(Config.DEFAULT_PASSWORD);
-        parser.addArgument(Config.KEY_ENCRYPTION)
+        parser.addArgument("--" + Config.KEY_USERNAME).setDefault(Config.DEFAULT_USERNAME);
+        parser.addArgument("--" + Config.KEY_PASSWORD).setDefault(Config.DEFAULT_PASSWORD);
+        parser.addArgument("--" + Config.KEY_ENCRYPTION)
                 .help("Ues a TLS Bolt connection?")
                 .setDefault(Config.DEFAULT_USE_ENCRYPTION);
-        parser.addArgument(Config.KEY_BATCH_SIZE)
+        parser.addArgument("--" + Config.KEY_BATCH_SIZE)
                 .help("transaction batch size")
                 .setDefault(Config.DEFAULT_BATCH_SIZE);
-        parser.addArgument(Config.KEY_QUEUE_DEPTH)
+        parser.addArgument("--" + Config.KEY_QUEUE_DEPTH)
                 .help("PaySim queue depth").
                 setDefault(Config.DEFAULT_SIM_QUEUE_DEPTH);
         return parser;
