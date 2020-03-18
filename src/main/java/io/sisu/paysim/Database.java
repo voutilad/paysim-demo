@@ -41,6 +41,7 @@ public class Database {
     public static void execute(Driver driver, Query query) {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
+                logger.trace(query.toString());
                 tx.run(query);
                 return 1;
             });
@@ -49,8 +50,12 @@ public class Database {
 
     public static int executeBatch(Driver driver, List<Query> queries) {
         try (Session session = driver.session()) {
-            int cnt =  session.writeTransaction(tx -> {
-                queries.forEach(q -> tx.run(q));
+
+            int cnt = session.writeTransaction(tx -> {
+                queries.forEach(q -> {
+                    logger.trace(q.toString());
+                    tx.run(q);
+                });
                 return queries.size();
             });
             logger.debug(String.format("batch executed %d queries", cnt));
