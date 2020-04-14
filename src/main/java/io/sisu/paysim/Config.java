@@ -26,7 +26,7 @@ public class Config {
     public final String username;
     public final String password;
     public final String boltUri;
-    private final boolean useEncryption;
+    public final boolean useEncryption;
     public final int batchSize;
     public final int queueDepth;
 
@@ -36,7 +36,7 @@ public class Config {
         propertiesFile = orString(ns.get(KEY_PROPERTIES_FILE), DEFAULT_PROPERTIES_FILE);
         username = orString(ns.get(KEY_USERNAME), DEFAULT_USERNAME);
         password = orString(ns.get(KEY_PASSWORD), DEFAULT_PASSWORD);
-        boltUri = orString(ns.get(KEY_BOLT_URI), DEFAULT_PASSWORD);
+        boltUri = orString(ns.get(KEY_BOLT_URI), DEFAULT_BOLT_URI);
         useEncryption = orBool(ns.get(KEY_ENCRYPTION), DEFAULT_USE_ENCRYPTION);
         batchSize = orInt(ns.get(KEY_BATCH_SIZE), DEFAULT_BATCH_SIZE);
         queueDepth = orInt(ns.get(KEY_QUEUE_DEPTH), DEFAULT_SIM_QUEUE_DEPTH);
@@ -44,9 +44,9 @@ public class Config {
 
     private static String orString(Object val, String defaultValue) {
         if (val == null) {
-            return defaultValue.toString();
+            return defaultValue;
         }
-        return defaultValue;
+        return val.toString();
     }
 
     private static int orInt(Object val, int defaultValue) {

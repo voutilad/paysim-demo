@@ -21,16 +21,6 @@ public class Database {
             Config.builder()
                     .withLogging(Logging.slf4j()).build();
 
-    public static Driver connect(Config config, String username, String password) {
-        Driver driver = null;
-        try {
-            driver = GraphDatabase.driver("bolt://localhost:7687",  AuthTokens.basic(username, password), config);
-        } catch (Exception e) {
-            logger.error("Failed to initialize bolt connection to Neo4j", e);
-        }
-        return driver;
-    }
-
     public static void enforcePaySimSchema(Driver driver) {
         try (Session session = driver.session()) {
             Arrays.stream(Cypher.SCHEMA_QUERIES).forEach(q -> session.run(q));
@@ -70,5 +60,12 @@ public class Database {
                     .map(record -> record.get(0).asString())
                     .collect(Collectors.toList());
         }
+    }
+
+    public static Driver connect(String boltUri, String username, String password, boolean useEncryption) {
+        if (useEncryption) {
+            return GraphDatabase.driver(boltUri, AuthTokens.basic(username, password), encryptedConfig);
+        }
+        return GraphDatabase.driver(boltUri, AuthTokens.basic(username, password), defaultConfig);
     }
 }

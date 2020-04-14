@@ -60,7 +60,7 @@ public class App {
         } catch (ArgumentParserException e) {
             parser.handleError(e);
         } catch (Exception e) {
-            logger.error("unhandled exception! (this is a bug)", e);
+            logger.error("Failed to run PaySim demo app!", e);
         }
     }
 
@@ -71,7 +71,7 @@ public class App {
         final ZonedDateTime start = ZonedDateTime.now();
         final AtomicInteger atom = new AtomicInteger(0);
 
-        try (Driver driver = Database.connect(Database.defaultConfig, config.username, config.password)) {
+        try (Driver driver = Database.connect(config.boltUri, config.username, config.password, config.useEncryption)) {
             Database.enforcePaySimSchema(driver);
 
             try {

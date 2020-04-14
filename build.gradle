@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'io.sisu'
-version '0.3.0'
+version '0.3.1'
 description 'Using PaySim, populates a graph in a target Neo4j graph database'
 
 sourceCompatibility = 1.8

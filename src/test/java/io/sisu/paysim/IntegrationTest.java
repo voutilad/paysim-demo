@@ -12,7 +12,7 @@ public class IntegrationTest {
     @Test
     @Disabled
     void testGettingClientIds() {
-        Driver driver = Database.connect(Database.defaultConfig, "neo4j", "password");
+        Driver driver = Database.connect("bolt://localhost:7687", "neo4j", "password", false);
         List<String> ids = Database.getClientIds(driver);
         Assertions.assertTrue(ids.size() > 0);
         System.out.println(ids.get(3));
