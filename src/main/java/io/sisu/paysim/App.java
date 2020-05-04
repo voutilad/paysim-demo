@@ -24,7 +24,15 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class App {
-    protected static final Logger logger = LoggerFactory.getLogger(App.class);
+    protected static final Logger logger;
+
+    static {
+        // Set up nicer logging output.
+        System.setProperty("org.slf4j.simpleLogger.showDateTime", "true");
+        System.setProperty("org.slf4j.simpleLogger.dateTimeFormat", "[yyyy-MM-dd'T'HH:mm:ss:SSS]");
+        System.setProperty("org.slf4j.simpleLogger.logFile", "System.out");
+        logger = LoggerFactory.getLogger(App.class);
+    }
 
     private static ArgumentParser newParser() {
         ArgumentParser parser = ArgumentParsers.newFor("paysim-demo")
