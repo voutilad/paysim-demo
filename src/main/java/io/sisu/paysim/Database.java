@@ -2,6 +2,7 @@ package io.sisu.paysim;
 
 import org.neo4j.driver.Config;
 import org.neo4j.driver.*;
+import org.neo4j.driver.exceptions.ClientException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -22,9 +23,14 @@ public class Database {
                     .withLogging(Logging.slf4j()).build();
 
     public static void enforcePaySimSchema(Driver driver) {
-        try (Session session = driver.session()) {
-            Arrays.stream(Cypher.SCHEMA_QUERIES).forEach(q -> session.run(q));
-        }
+        Arrays.stream(Cypher.SCHEMA_QUERIES).forEach(q -> {
+            try (Session session = driver.session()) {
+                session.run(q);
+            } catch (ClientException ce) {
+                logger.info("constraint provided by '{}' might already exist", q);
+            }
+        });
+
         logger.debug("schema configured");
     }
 
