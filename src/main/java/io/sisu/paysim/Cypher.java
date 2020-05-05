@@ -73,7 +73,7 @@ public class Cypher {
 
     public static final String GET_CLIENT_IDS = "MATCH (c:Client) RETURN c.id";
 
-    public static final String MAKE_MULES_CLIENTS = "MATCH (m:Mule) WHERE NOT m:Client SET m :Client RETURN m.id";
+    public static final String MAKE_MULES_CLIENTS = "MATCH (m:Mule) WHERE NOT m:Client SET m :Client";
 
     public static final String LABEL_PLACEHOLDER = "~LABEL~";
     public static final String UPDATE_NODE_PROPS = "MATCH (n:" + LABEL_PLACEHOLDER + " {id: $id}) SET n += $props";
