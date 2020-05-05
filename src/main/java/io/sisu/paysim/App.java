@@ -104,7 +104,7 @@ public class App {
                         (float) atom.get() / Util.toSeconds(Duration.between(start, ZonedDateTime.now()))));
 
                 logger.info("Labeling all Mules as Clients...");
-                driver.session().run(Cypher.MAKE_MULES_CLIENTS);
+                driver.session().run(Cypher.MAKE_MULES_CLIENTS).consume();
 
                 logger.info("Creating 'identity' materials associated with Client accounts...");
                 Lists.partition(sim.getClients(), config.batchSize)
