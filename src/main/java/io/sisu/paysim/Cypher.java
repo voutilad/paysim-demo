@@ -1,10 +1,6 @@
 package io.sisu.paysim;
 
 public class Cypher {
-  public static final String SENDER_LABEL_PLACEHOLDER = "~STYPE~";
-  public static final String RECEIVER_LABEL_PLACEHOLDER = "~RTYPE~";
-  public static final String TX_LABEL_PLACEHOLDER = "~XTYPE~";
-
   public static final String[] SCHEMA_QUERIES = {
     // Core Types
     "CREATE CONSTRAINT ON (c:Client) ASSERT c.id IS UNIQUE",
@@ -36,17 +32,15 @@ public class Cypher {
     "CREATE INDEX ON :Transaction(fraud)",
   };
 
-  public static final String INSERT_TRANSACTION_QUERY =
+  public static final String BULK_TRANSACTION_QUERY_STRING =
       String.join(
           "\n",
           new String[] {
-            "MERGE (s:" + SENDER_LABEL_PLACEHOLDER + " { id: $senderId })",
-            "MERGE (r:" + RECEIVER_LABEL_PLACEHOLDER + " { id: $receiverId })",
-            "CREATE (tx:Transaction:" + TX_LABEL_PLACEHOLDER + " { id: $txId })",
-            "SET tx.ts = $ts, tx.amount = $amount, tx.fraud = $fraud,",
-            "    tx.step = $step, tx.globalStep = $globalStep",
-            "CREATE (s)-[:PERFORMED]->(tx)",
-            "CREATE (tx)-[:TO]->(r)",
+            "UNWIND $txs AS tx",
+            "  CALL apoc.merge.node([ tx.senderLabel ], {id: tx.senderId }) YIELD node AS s",
+            "  CALL apoc.merge.node([ tx.receiverLabel ], { id: tx.receiverId }) YIELD node AS r",
+            "  CALL apoc.create.node([ 'Transaction', tx.label ], { id: tx.id, ts: tx.ts, amount: tx.amount, fraud: tx.fraud, step: tx.step, globalStep: tx.globalStep}) YIELD node AS t",
+            "  CREATE (s)-[:PERFORMED]->(t)-[:TO]->(r)",
           });
 
   public static final String THREAD_TRANSACTIONS_IN_BATCH =

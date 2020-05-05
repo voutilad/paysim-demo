@@ -12,6 +12,7 @@ import org.neo4j.driver.Values;
 import org.paysim.IteratingPaySim;
 import org.paysim.PaySimState;
 import org.paysim.actors.SuperActor;
+import org.paysim.base.Transaction;
 import org.paysim.parameters.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +84,7 @@ public class App {
     IteratingPaySim sim =
         new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
 
-    final List<Query> batch = new ArrayList<>(config.batchSize);
+    final List<Transaction> batch = new ArrayList<>(config.batchSize);
     final ZonedDateTime start = ZonedDateTime.now();
     final AtomicInteger atom = new AtomicInteger(0);
 
@@ -97,17 +98,19 @@ public class App {
         // Batch up Queries based on our Transaction stream for execution
         sim.forEachRemaining(
             t -> {
-              batch.add(Util.compileTransactionQuery(t));
+              batch.add(t);
 
               if (batch.size() >= config.batchSize) {
-                atom.addAndGet(Database.executeBatch(driver, batch));
+                Database.execute(driver, Util.compileBulkTransactionQuery(batch));
+                atom.addAndGet(batch.size());
                 batch.clear();
               }
             });
 
         // Anything left over?
         if (batch.size() > 0) {
-          atom.addAndGet(Database.executeBatch(driver, batch));
+          Database.execute(driver, Util.compileBulkTransactionQuery(batch));
+          atom.addAndGet(batch.size());
         }
         logger.info(String.format("[loaded %d PaySim transactions]", atom.get()));
         logger.info(

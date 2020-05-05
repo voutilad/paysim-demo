@@ -8,9 +8,7 @@ import org.paysim.identity.ClientIdentity;
 import org.paysim.identity.Properties;
 
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class Util {
@@ -30,23 +28,24 @@ public class Util {
     map.put("receiverId", t.getIdDest());
     map.put("senderName", t.getNameOrig());
     map.put("receiverName", t.getNameDest());
-    map.put("txId", String.format("tx-%s", t.getGlobalStep()));
+    map.put("id", String.format("tx-%s", t.getGlobalStep()));
     map.put("ts", t.getStep()); // TODO: convert to datetime
     map.put("step", t.getStep());
     map.put("globalStep", t.getGlobalStep());
-
+    map.put("senderLabel", capitalize(t.getOrigType().toString()));
+    map.put("receiverLabel", capitalize(t.getDestType().toString()));
+    map.put("label", capitalize(t.getAction()));
     return map;
   }
 
-  public static Query compileTransactionQuery(Transaction t) {
-    String rawQ =
-        Cypher.INSERT_TRANSACTION_QUERY
-            .replace(Cypher.SENDER_LABEL_PLACEHOLDER, capitalize(t.getOrigType().toString()))
-            .replace(Cypher.RECEIVER_LABEL_PLACEHOLDER, capitalize(t.getDestType().toString()))
-            .replace(Cypher.TX_LABEL_PLACEHOLDER, capitalize(t.getAction()));
-    Map<String, Object> props = propsFromTx(t);
-
-    return new Query(rawQ, props);
+  public static Query compileBulkTransactionQuery(List<Transaction> transactions) {
+    Map<String, Object> propMap = new HashMap<>();
+    List<Map<String, Object>> unwindList = new ArrayList<>(transactions.size());
+    for (Transaction transaction : transactions) {
+      unwindList.add(propsFromTx(transaction));
+    }
+    propMap.put("txs", unwindList);
+    return new Query(Cypher.BULK_TRANSACTION_QUERY_STRING, propMap);
   }
 
   public static Query compilePropertyUpdateQuery(SuperActor actor) {
