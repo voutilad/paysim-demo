@@ -3,11 +3,14 @@ package io.sisu.paysim;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.*;
 import org.neo4j.driver.exceptions.ClientException;
+import org.neo4j.driver.summary.ResultSummary;
+import org.neo4j.driver.summary.SummaryCounters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Database {
@@ -38,23 +41,27 @@ public class Database {
         try (Session session = driver.session()) {
             session.writeTransaction(tx -> {
                 logger.trace(query.toString());
-                tx.run(query);
-                return 1;
+                SummaryCounters results = tx.run(query).consume().counters();
+                logger.info("created {} nodes, {} relationships", results.nodesCreated(), results.relationshipsCreated());
+                return true;
             });
         }
     }
 
     public static int executeBatch(Driver driver, List<Query> queries) {
         try (Session session = driver.session()) {
-
+            final AtomicInteger nodeCnt = new AtomicInteger();
+            final AtomicInteger relCnt = new AtomicInteger();
             int cnt = session.writeTransaction(tx -> {
                 queries.forEach(q -> {
                     logger.trace(q.toString());
-                    tx.run(q);
+                    SummaryCounters results = tx.run(q).consume().counters();
+                    nodeCnt.addAndGet(results.nodesCreated());
+                    relCnt.addAndGet(results.relationshipsCreated());
                 });
                 return queries.size();
             });
-            logger.debug(String.format("batch executed %d queries", cnt));
+            logger.info("batch executed {} queries, creating {} nodes and {} relationships", cnt, nodeCnt.get(), relCnt.get());
             return cnt;
         }
     }
