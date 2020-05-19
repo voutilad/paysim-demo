@@ -10,6 +10,7 @@ import org.neo4j.driver.Driver;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Values;
 import org.paysim.IteratingPaySim;
+import org.paysim.PaySimState;
 import org.paysim.actors.SuperActor;
 import org.paysim.parameters.Parameters;
 import org.slf4j.Logger;
@@ -92,7 +93,7 @@ public class App {
 
       try {
         sim.run();
-        logger.info("Simulation started, load commencing...please, be patient! :-)");
+        logger.info("Simulation started using PaySim v{}, load commencing...please, be patient! :-)", PaySimState.PAYSIM_VERSION);
         // Batch up Queries based on our Transaction stream for execution
         sim.forEachRemaining(
             t -> {

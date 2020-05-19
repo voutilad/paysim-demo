@@ -54,7 +54,7 @@ public class Util {
 
     // TODO: right now we're shoving id into the Identity, so to prevent collision remove it...yes
     // this is wasteful
-    final Map<String, String> props = actor.getIdentityAsMap();
+    final Map<String, Object> props = actor.getIdentityAsMap();
     props.remove(Properties.ID);
 
     return new Query(

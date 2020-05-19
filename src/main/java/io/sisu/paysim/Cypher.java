@@ -32,6 +32,8 @@ public class Cypher {
     "CREATE INDEX ON :Debit(globalStep)",
     "CREATE INDEX ON :Payment(globalStep)",
     "CREATE INDEX ON :Transfer(globalStep)",
+    "CREATE INDEX ON :Merchant(highRisk)",
+    "CREATE INDEX ON :Transaction(fraud)",
   };
 
   public static final String INSERT_TRANSACTION_QUERY =
