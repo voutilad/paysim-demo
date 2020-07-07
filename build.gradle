@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'io.sisu'
-version '0.4.0'
+version '0.5.0-SNAPSHOT'
 description 'Using PaySim, populates a graph in a target Neo4j graph database'
 
 sourceCompatibility = 1.8
@@ -19,8 +19,8 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.voutilad:paysim:2.3.0'
-    implementation 'org.neo4j.driver:neo4j-java-driver:4.0.1'
+    implementation 'com.github.voutilad:paysim:2.4.0'
+    implementation 'org.neo4j.driver:neo4j-java-driver:4.1.0'
     implementation 'net.sourceforge.argparse4j:argparse4j:0.8.1'
     implementation 'org.slf4j:slf4j-simple:1.7.30'
 

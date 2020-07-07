@@ -11,8 +11,8 @@ public class Config {
   protected static final String DEFAULT_PASSWORD = "password";
   protected static final String DEFAULT_BOLT_URI = "bolt://localhost:7687";
   protected static final boolean DEFAULT_USE_ENCRYPTION = false;
-  protected static final int DEFAULT_BATCH_SIZE = 50_000;
-  protected static final int DEFAULT_SIM_QUEUE_DEPTH = 500_000;
+  protected static final int DEFAULT_BATCH_SIZE = 5_000;
+  protected static final int DEFAULT_SIM_QUEUE_DEPTH = 50_000;
 
   protected static final String KEY_PROPERTIES_FILE = "properties";
   protected static final String KEY_USERNAME = "username";
