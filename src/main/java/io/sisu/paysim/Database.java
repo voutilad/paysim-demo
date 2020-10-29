@@ -2,6 +2,7 @@ package io.sisu.paysim;
 
 import org.neo4j.driver.Config;
 import org.neo4j.driver.*;
+import org.neo4j.driver.async.AsyncSession;
 import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.summary.SummaryCounters;
@@ -10,16 +11,15 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 public class Database {
-  private static Logger logger = LoggerFactory.getLogger(Database.class);
-
   public static final Config encryptedConfig =
       Config.builder().withLogging(Logging.slf4j()).withEncryption().build();
-
   public static final Config defaultConfig = Config.builder().withLogging(Logging.slf4j()).build();
+  private static Logger logger = LoggerFactory.getLogger(Database.class);
 
   public static void enforcePaySimSchema(Driver driver) {
     Arrays.stream(Cypher.SCHEMA_QUERIES)
@@ -48,6 +48,25 @@ public class Database {
             return true;
           });
     }
+  }
+
+  public static CompletableFuture<AsyncResult> executeAsync(Driver driver, Query query) {
+    final AsyncSession session = driver.asyncSession();
+
+    return session
+        .writeTransactionAsync(
+            tx -> {
+              logger.trace(query.toString());
+              return tx.runAsync(query)
+                  .thenCompose(resultCursor -> resultCursor.consumeAsync())
+                  .thenApply(resultSummary -> new AsyncResult(query, resultSummary));
+            })
+        .thenCompose(
+            result ->
+                session
+                    .closeAsync()
+                    .thenApplyAsync(unused -> result))
+        .toCompletableFuture();
   }
 
   public static int executeBatch(Driver driver, List<Query> queries) {

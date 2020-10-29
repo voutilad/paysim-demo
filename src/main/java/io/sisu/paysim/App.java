@@ -19,9 +19,8 @@ import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -54,7 +53,7 @@ public class App {
     parser.addArgument("--" + Config.KEY_PASSWORD).setDefault(Config.DEFAULT_PASSWORD);
     parser
         .addArgument("--" + Config.KEY_ENCRYPTION)
-        .help("Ues a TLS Bolt connection?")
+        .help("Ues a TLS Bolt connection (if not specified in uri)?")
         .setDefault(Config.DEFAULT_USE_ENCRYPTION);
     parser
         .addArgument("--" + Config.KEY_BATCH_SIZE)
@@ -64,6 +63,10 @@ public class App {
         .addArgument("--" + Config.KEY_QUEUE_DEPTH)
         .help("PaySim queue depth")
         .setDefault(Config.DEFAULT_SIM_QUEUE_DEPTH);
+    parser
+        .addArgument("--" + Config.KEY_PARALLELISM)
+        .help("Maximum size of threadpool for parallel data loading")
+        .setDefault(Config.DEFAULT_PARALLELISM);
     return parser;
   }
 
@@ -85,6 +88,8 @@ public class App {
         new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
 
     final List<Transaction> batch = new ArrayList<>(config.batchSize);
+    final Map<Query, CompletableFuture<AsyncResult>> tasks = new HashMap<>();
+
     final ZonedDateTime start = ZonedDateTime.now();
     final AtomicInteger atom = new AtomicInteger(0);
 
@@ -94,24 +99,50 @@ public class App {
 
       try {
         sim.run();
-        logger.info("Simulation started using PaySim v{}, load commencing...please, be patient! :-)", PaySimState.PAYSIM_VERSION);
+        logger.info(
+            "Simulation started using PaySim v{}, load commencing...please, be patient! :-)",
+            PaySimState.PAYSIM_VERSION);
         // Batch up Queries based on our Transaction stream for execution
         sim.forEachRemaining(
             t -> {
               batch.add(t);
 
               if (batch.size() >= config.batchSize) {
-                Database.execute(driver, Util.compileBulkTransactionQuery(batch));
+                Query q = Util.compileBulkTransactionQuery(batch);
+                tasks.put(q, Database.executeAsync(driver, q));
                 atom.addAndGet(batch.size());
                 batch.clear();
+
+                if (tasks.size() >= config.parallelism) {
+                  final AsyncResult result =
+                      (AsyncResult)
+                          CompletableFuture.anyOf(
+                                  tasks.values().toArray(new CompletableFuture[tasks.size()]))
+                              .join();
+                  tasks.remove(result.query);
+                  logger.info("result: {}", result);
+                }
               }
             });
 
         // Anything left over?
         if (batch.size() > 0) {
-          Database.execute(driver, Util.compileBulkTransactionQuery(batch));
+          Query q = Util.compileBulkTransactionQuery(batch);
+          tasks.put(q, Database.executeAsync(driver, q));
           atom.addAndGet(batch.size());
         }
+
+        // Wait for finish
+        while (tasks.size() > 0) {
+          AsyncResult result =
+              (AsyncResult)
+                  CompletableFuture.anyOf(
+                          tasks.values().toArray(new CompletableFuture[tasks.size()]))
+                      .join();
+          tasks.remove(result.query);
+          logger.info("result: {}", result);
+        }
+
         logger.info(String.format("[loaded %d PaySim transactions]", atom.get()));
         logger.info(
             String.format(
