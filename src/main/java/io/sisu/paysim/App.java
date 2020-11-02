@@ -149,6 +149,10 @@ public class App {
                 "[estimated load rate: %.2f PaySim-transactions/second]",
                 (float) atom.get() / Util.toSeconds(Duration.between(start, ZonedDateTime.now()))));
 
+        if (true) {
+          // XXX abort for now
+          return;
+        }
         logger.info("Labeling all Mules as Clients...");
         driver.session().run(Cypher.MAKE_MULES_CLIENTS).consume();
 

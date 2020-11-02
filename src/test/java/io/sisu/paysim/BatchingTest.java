@@ -1,6 +1,9 @@
 package io.sisu.paysim;
 
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.neo4j.driver.Driver;
 import org.neo4j.graphalgo.core.utils.paged.AllocationTracker;
 import org.neo4j.graphalgo.core.utils.paged.dss.DisjointSetStruct;
 import org.neo4j.graphalgo.core.utils.paged.dss.HugeAtomicDisjointSetStruct;
@@ -10,33 +13,73 @@ import org.paysim.parameters.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
+import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 
 public class BatchingTest {
-  static Logger logger = LoggerFactory.getLogger(BatchingTest.class);
+  static final Logger logger = LoggerFactory.getLogger(BatchingTest.class);
+  static Config config = new Config(Optional.empty());
+  static Driver driver;
+
+  @BeforeAll
+  public static void beforeAll() {
+    driver =
+        Database.connect("bolt+ssc://35.203.8.95:7687", config.username, config.password, config.useEncryption);
+    Database.enforcePaySimSchema(driver);
+  }
+
+  @AfterAll
+  public static void afterAll() {
+    driver.close();
+  }
 
   @Test
   public void testBatch() {
-    Config config = new Config(Optional.empty());
+    long total = 0;
     IteratingPaySim sim =
         new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
     sim.run();
 
-    final int batchSize = 5000;
+    final int batchSize = 500;
     final List<Transaction> txs = new ArrayList<>(batchSize);
+
+    final ZonedDateTime start = ZonedDateTime.now();
 
     while (sim.hasNext()) {
       txs.add(sim.next());
+      total++;
       if (txs.size() >= batchSize) {
-        doBatch(txs, 12);
+        final ZonedDateTime batchStart = ZonedDateTime.now();
+
+        List<List<Transaction>> buckets = doBatch(txs, 15);
+        batchLoad(buckets);
+
+        final Duration delta = Duration.between(batchStart, ZonedDateTime.now());
+        logger.info("batch completed in {}m {}s", delta.toMinutes(), Util.toSecondsPart(delta));
+
         txs.clear();
       }
     }
+    Duration delta = Duration.between(start, ZonedDateTime.now());
+    logger.info("FINISHED. Total time: {}m {}s, {} txs", delta.toMinutes(), Util.toSecondsPart(delta), total);
   }
 
-  public void doBatch(List<Transaction> txs, int parallelism) {
+  public void batchLoad(List<List<Transaction>> batches) {
+    final List<CompletableFuture<AsyncResult>> tasks = new ArrayList<>();
+
+    logger.info("starting {} tasks", batches.size());
+    for (List<Transaction> batch : batches) {
+      logger.info("...adding task with {} txs", batch.size());
+      tasks.add(Database.executeAsync(driver, Util.compileBulkTransactionQuery(batch)));
+    }
+    CompletableFuture.allOf(tasks.toArray(new CompletableFuture[tasks.size()])).join();
+  }
+
+  public List<List<Transaction>> doBatch(List<Transaction> txs, int parallelism) {
     final Map<String, Long> encoding = new HashMap<>();
 
     // Collect list of nodes and OneHot encode them
@@ -64,7 +107,7 @@ public class BatchingTest {
     final int largestCommunity = clusters.values().stream().max(Comparator.naturalOrder()).get();
     final int threshold =
         Math.min(
-            largestCommunity, (txs.size() / parallelism) + (txs.size() % parallelism > 0 ? 1 : 0));
+            largestCommunity, (txs.size() / Math.max(1, parallelism)) + (txs.size() % parallelism > 0 ? 1 : 0));
     logger.info("largest community {}, using threshold {}", largestCommunity, threshold);
 
     List<List<Transaction>> buckets = new ArrayList<>();
@@ -110,17 +153,22 @@ public class BatchingTest {
         }
       }
     }
+    // hack for now...anything that had a problem can just go in another bucket
     buckets.add(garbage);
+
+    // Ditch empties
+    buckets.removeIf(bucket -> bucket.size() < 1);
+
     logger.info(
         "bucketed: {} buckets,  {}",
         buckets.stream().filter(bucket -> bucket.size() > 0).count(),
         buckets.stream()
-            .filter(bucket -> bucket.size() > 0)
             .map(tx -> tx.size())
             .collect(Collectors.toList())
             .toArray());
     // buckets.stream().filter(bucket -> bucket.size() > 0).forEach(bucket -> logger.info("{}",
     // bucket.size()));
+    return buckets;
   }
 
   @Test

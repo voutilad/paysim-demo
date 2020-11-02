@@ -3,6 +3,7 @@ package io.sisu.paysim;
 import org.neo4j.driver.Config;
 import org.neo4j.driver.*;
 import org.neo4j.driver.async.AsyncSession;
+import org.neo4j.driver.async.ResultCursor;
 import org.neo4j.driver.exceptions.ClientException;
 import org.neo4j.driver.summary.ResultSummary;
 import org.neo4j.driver.summary.SummaryCounters;
@@ -58,14 +59,17 @@ public class Database {
             tx -> {
               logger.trace(query.toString());
               return tx.runAsync(query)
-                  .thenCompose(resultCursor -> resultCursor.consumeAsync())
+                  .thenCompose(ResultCursor::consumeAsync)
                   .thenApply(resultSummary -> new AsyncResult(query, resultSummary));
             })
         .thenCompose(
             result ->
                 session
                     .closeAsync()
-                    .thenApplyAsync(unused -> result))
+                    .thenApplyAsync(unused -> {
+                        //logger.info("{}", result);
+                        return result;
+                    }))
         .toCompletableFuture();
   }
 

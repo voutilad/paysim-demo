@@ -23,7 +23,7 @@ public class AsyncResult {
   @Override
   public String toString() {
     return String.format(
-        "{ nodesCreated: %d, relsCreated: %d, availableAfterMs: %d, consumedAfterMs: %d",
+        "{ nodesCreated: %d, relsCreated: %d, availableAfterMs: %d, consumedAfterMs: %d }",
         nodesCreated, relsCreated, availableAfterMs, consumedAfterMs);
   }
 }
