@@ -44,7 +44,7 @@ public class BatchingTest {
         new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
     sim.run();
 
-    final int batchSize = 500;
+    final int batchSize = 2500;
     final List<Transaction> txs = new ArrayList<>(batchSize);
 
     final ZonedDateTime start = ZonedDateTime.now();
@@ -55,7 +55,7 @@ public class BatchingTest {
       if (txs.size() >= batchSize) {
         final ZonedDateTime batchStart = ZonedDateTime.now();
 
-        List<List<Transaction>> buckets = doBatch(txs, 15);
+        List<List<Transaction>> buckets = doBatch(txs, 31);
         batchLoad(buckets);
 
         final Duration delta = Duration.between(batchStart, ZonedDateTime.now());
