@@ -7,8 +7,8 @@ Create your own fraud network in your local Neo4j instance and explore a virtual
 
 ## Requirements
 To build and run this demo, you'll need:
-* [Java 8 or 11 JDK](https://adoptopenjdk.net) (development is being done in Java 11)
-* [Neo4j](https://neo4j.com/download) v3.5 (community or enterprise)
+* [Java 11 JDK](https://adoptopenjdk.net)
+* [Neo4j](https://neo4j.com/download) v4.2 (community or enterprise)
 
 ### Known Issues ⚠️
 Before you get started, keep in mind the following caveats:
@@ -23,7 +23,7 @@ This project uses [Gradle](https://gradle.org/) and should work with your favori
 If you want to use all the following defaults, this is the easiest way to run the simulation and build the graph.
 
 Assuming:
-- bolt uri: `bolt://localhost:7687`
+- bolt uri: `neo4j://localhost:7687`
 - neo4j admin user is `neo4j` and password is `password`
 
 On Linux/*BSD/macOS:
@@ -52,7 +52,7 @@ On Windows:
 In `./build/distributions` you'll find either the `.tar` or `.zip` file. You can unpack the contents wherever you want to "install" the demo app.
 
 ```
-burritogrande[paysim-demo-0.1.0]$ ls -alFh
+burritogrande[paysim-demo-0.6.0]$ ls -alFh
 total 8
 drwxr-xr-x  6 dave  staff   192B Feb  3 09:22 ./
 drwxr-xr-x  4 dave  staff   128B Feb  3 09:22 ../
@@ -65,7 +65,7 @@ drwxr-xr-x  9 dave  staff   288B Feb  3 09:22 paramFiles/
 Inside `bin/` you'll find a shell script and batch file for easily running the demo:
 
 ```
-burritogrande[paysim-demo-0.2.0]$ ./bin/paysim-demo -h
+burritogrande[paysim-demo-0.6.0]$ ./bin/paysim-demo -h
 usage: paysim-demo [-h] [--properties PROPERTIES] [--uri URI] [--username USERNAME] [--password PASSWORD] [--tls TLS]
                    [--batchSize BATCHSIZE] [--queueDepth QUEUEDEPTH]
 

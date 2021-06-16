@@ -2,46 +2,81 @@ package io.sisu.paysim;
 
 public class Cypher {
   public static final String[] SCHEMA_QUERIES = {
+    // Sadness
+    "CREATE INDEX IF NOT EXISTS FOR (n:Node) ON (n.id)",
+
     // Core Types
-    "CREATE CONSTRAINT ON (c:Client) ASSERT c.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (b:Bank) ASSERT b.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (m:Merchant) ASSERT m.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (m:Mule) ASSERT m.id IS UNIQUE",
+    "CREATE INDEX IF NOT EXISTS FOR (c:Client) ON (c.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (b:Bank) ON (b.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (m:Merchant) ON (m.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (m:Mule) ON (m.id)",
 
     // Transaction Types
-    "CREATE CONSTRAINT ON (c:CashIn) ASSERT c.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (c:CashOut) ASSERT c.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (d:Debit) ASSERT d.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (p:Payment) ASSERT p.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (t:Transfer) ASSERT t.id IS UNIQUE",
-    "CREATE CONSTRAINT ON (tx:Transaction) ASSERT tx.id IS UNIQUE",
+    "CREATE INDEX IF NOT EXISTS FOR (c:CashIn) ON (c.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (c:CashOut) ON (c.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (d:Debit) ON (d.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (p:Payment) ON (p.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (t:Transfer) ON (t.id)",
+    "CREATE INDEX IF NOT EXISTS FOR (tx:Transaction) ON (tx.id)",
 
     // Identity Types
-    "CREATE CONSTRAINT ON (e:Email) ASSERT e.email IS UNIQUE",
-    "CREATE CONSTRAINT ON (s:SSN) ASSERT s.ssn IS UNIQUE",
-    "CREATE CONSTRAINT ON (p:Phone) ASSERT p.phoneNumber IS UNIQUE",
+    "CREATE INDEX IF NOT EXISTS FOR (e:Email) ON (e.email)",
+    "CREATE INDEX IF NOT EXISTS FOR (s:SSN) ON (s.ssn)",
+    "CREATE CONSTINDEXRAINT IF NOT EXISTS FOR (p:Phone) ON (p.phoneNumber)",
 
     // Various Indices
-    "CREATE INDEX ON :Transaction(globalStep)",
-    "CREATE INDEX ON :CashIn(globalStep)",
-    "CREATE INDEX ON :CashOut(globalStep)",
-    "CREATE INDEX ON :Debit(globalStep)",
-    "CREATE INDEX ON :Payment(globalStep)",
-    "CREATE INDEX ON :Transfer(globalStep)",
-    "CREATE INDEX ON :Merchant(highRisk)",
-    "CREATE INDEX ON :Transaction(fraud)",
+    "CREATE INDEX IF NOT EXISTS FOR (t:Transaction) ON (t.globalStep)",
+    "CREATE INDEX IF NOT EXISTS FOR (c:CashIn) ON (c.globalStep)",
+    "CREATE INDEX IF NOT EXISTS FOR (c:CashOut) ON (c.globalStep)",
+    "CREATE INDEX IF NOT EXISTS FOR (d:Debit) ON (d.globalStep)",
+    "CREATE INDEX IF NOT EXISTS FOR (p:Payment) ON (p.globalStep)",
+    "CREATE INDEX IF NOT EXISTS FOR (t:Transfer) ON(t.globalStep)",
+    "CREATE INDEX IF NOT EXISTS FOR (m:Merchant) ON (m.highRisk)",
+    "CREATE INDEX IF NOT EXISTS FOR (t:Transaction) ON (t.fraud)",
   };
 
-  public static final String BULK_TRANSACTION_QUERY_STRING =
+  public static final String BULK_NODE_QUERY_STRING =
+      String.join(
+          "\n",
+          new String[] {
+            "UNWIND $nodes AS n",
+            "  WITH n, coalesce(n.props, {}) AS props",
+            "  MERGE (a:Node {id: n.id })",
+            "    ON CREATE SET a += props, a.new = true",
+            "WITH n, a WHERE a.new",
+            "FOREACH(_ IN CASE n.label WHEN 'Client' THEN [1] ELSE [] END | SET a:Client)",
+            "FOREACH(_ IN CASE n.label WHEN 'Mule' THEN [1] ELSE [] END | SET a:Client, a:Mule)",
+            "FOREACH(_ IN CASE n.label WHEN 'Merchant' THEN [1] ELSE [] END | SET a:Merchant)",
+            "FOREACH(_ IN CASE n.label WHEN 'Bank' THEN [1] ELSE [] END | SET a:Bank)",
+            "FOREACH(_ IN CASE n.label WHEN 'Payment' THEN [1] ELSE [] END | SET a:Transaction, a:Payment)",
+            "FOREACH(_ IN CASE n.label WHEN 'Transfer' THEN [1] ELSE [] END | SET a:Transaction, a:Transfer)",
+            "FOREACH(_ IN CASE n.label WHEN 'Debit' THEN [1] ELSE [] END | SET a:Transaction, a:Debit)",
+            "FOREACH(_ IN CASE n.label WHEN 'CashIn' THEN [1] ELSE [] END | SET a:Transaction, a:CashIn)",
+            "FOREACH(_ IN CASE n.label WHEN 'CashOut' THEN [1] ELSE [] END | SET a:Transaction, a:CashOut)",
+            "REMOVE a.new",
+            "RETURN count(a)",
+          });
+
+  public static final String BULK_TX_PERFORMED_QUERY_STRING =
       String.join(
           "\n",
           new String[] {
             "UNWIND $txs AS tx",
-            "  CALL apoc.merge.node([ tx.senderLabel ], {id: tx.senderId }) YIELD node AS s",
-            "  CALL apoc.merge.node([ tx.receiverLabel ], { id: tx.receiverId }) YIELD node AS r",
-            "  CALL apoc.create.node([ 'Transaction', tx.label ], { id: tx.id, ts: tx.ts, amount: tx.amount, fraud: tx.fraud, step: tx.step, globalStep: tx.globalStep}) YIELD node AS t",
-            "  CREATE (s)-[:PERFORMED]->(t)-[:TO]->(r)",
+            "  MATCH (s:Node {id: tx.senderId})",
+            "  MATCH (t:Node {id: tx.id})",
+            "  CREATE (s)-[:PERFORMED]->(t)",
           });
+
+  public static final String BULK_TX_TO_QUERY_STRING =
+      String.join(
+          "\n",
+          new String[] {
+            "UNWIND $txs AS tx",
+            "  MATCH (r:Node {id: tx.receiverId})",
+            "  MATCH (t:Node {id: tx.id})",
+            "  CREATE (t)-[:TO]->(r)",
+          });
+
 
   public static final String THREAD_TRANSACTIONS_IN_BATCH =
       String.join(
@@ -54,9 +89,9 @@ public class Cypher {
             "WITH c, txs, head(txs) AS _start, last(txs) AS _last",
             "MERGE (c)-[:FIRST_TX]->(_start)",
             "MERGE (c)-[:LAST_TX]->(_last)",
-            "WITH c, apoc.coll.pairsMin(txs) AS pairs",
-            "UNWIND pairs AS pair",
-            "WITH pair[0] AS a, pair[1] AS b",
+            "WITH txs",
+            "UNWIND range(1, size(txs) - 1) AS idx",
+            "WITH txs[idx-1] AS a, txs[idx] AS b",
             "MERGE (a)-[n:NEXT]->(b)",
             "RETURN COUNT(n)",
           });
@@ -65,7 +100,7 @@ public class Cypher {
       String.join(
           "\n",
           new String[] {
-            "MERGE (c:Client {id: $clientId}) ON MATCH SET c.name = $name",
+            "MERGE (c:Node {id: $clientId}) ON MATCH SET c.name = $name, c:Client",
             "MERGE (s:SSN {ssn: $ssn})",
             "MERGE (e:Email {email: $email})",
             "MERGE (p:Phone {phoneNumber: $phoneNumber})",
@@ -75,9 +110,6 @@ public class Cypher {
           });
 
   public static final String GET_CLIENT_IDS = "MATCH (c:Client) RETURN c.id";
-
-  public static final String MAKE_MULES_CLIENTS = "MATCH (m:Mule) WHERE NOT m:Client SET m :Client";
-
   public static final String LABEL_PLACEHOLDER = "~LABEL~";
   public static final String UPDATE_NODE_PROPS =
       "MATCH (n:" + LABEL_PLACEHOLDER + " {id: $id}) SET n += $props";

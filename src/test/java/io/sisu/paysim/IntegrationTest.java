@@ -17,4 +17,11 @@ public class IntegrationTest {
     Assertions.assertTrue(ids.size() > 0);
     System.out.println(ids.get(3));
   }
+
+  @Test
+  @Disabled
+  void motherOfAllTests() {
+    App app = new App();
+
+  }
 }

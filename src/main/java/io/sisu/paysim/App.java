@@ -101,7 +101,9 @@ public class App {
               batch.add(t);
 
               if (batch.size() >= config.batchSize) {
-                Database.execute(driver, Util.compileBulkTransactionQuery(batch));
+                Database.execute(driver, Util.compileNodeTransactionQuery(batch));
+                Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_PERFORMED_QUERY_STRING, batch));
+                Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_TO_QUERY_STRING, batch));
                 atom.addAndGet(batch.size());
                 batch.clear();
               }
@@ -109,7 +111,9 @@ public class App {
 
         // Anything left over?
         if (batch.size() > 0) {
-          Database.execute(driver, Util.compileBulkTransactionQuery(batch));
+          Database.execute(driver, Util.compileNodeTransactionQuery(batch));
+          Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_PERFORMED_QUERY_STRING, batch));
+          Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_TO_QUERY_STRING, batch));
           atom.addAndGet(batch.size());
         }
         logger.info(String.format("[loaded %d PaySim transactions]", atom.get()));
@@ -117,9 +121,6 @@ public class App {
             String.format(
                 "[estimated load rate: %.2f PaySim-transactions/second]",
                 (float) atom.get() / Util.toSeconds(Duration.between(start, ZonedDateTime.now()))));
-
-        logger.info("Labeling all Mules as Clients...");
-        driver.session().run(Cypher.MAKE_MULES_CLIENTS).consume();
 
         logger.info("Creating 'identity' materials associated with Client accounts...");
         Lists.partition(sim.getClients(), config.batchSize)
@@ -149,7 +150,7 @@ public class App {
 
         logger.info("Threading transactions...");
         final List<String> ids = Database.getClientIds(driver);
-        Lists.partition(ids, config.batchSize)
+        Lists.partition(ids, (config.batchSize / 10))
             .forEach(
                 chunk -> {
                   Query query =

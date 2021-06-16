@@ -26,26 +26,54 @@ public class Util {
     map.put("flaggedFraud", t.isFlaggedFraud());
     map.put("senderId", t.getIdOrig());
     map.put("receiverId", t.getIdDest());
-    map.put("senderName", t.getNameOrig());
-    map.put("receiverName", t.getNameDest());
+    // map.put("senderName", t.getNameOrig());
+    // map.put("receiverName", t.getNameDest());
     map.put("id", String.format("tx-%s", t.getGlobalStep()));
     map.put("ts", t.getStep()); // TODO: convert to datetime
     map.put("step", t.getStep());
     map.put("globalStep", t.getGlobalStep());
-    map.put("senderLabel", capitalize(t.getOrigType().toString()));
-    map.put("receiverLabel", capitalize(t.getDestType().toString()));
-    map.put("label", capitalize(t.getAction()));
+    // map.put("senderLabel", capitalize(t.getOrigType().toString()));
+    // map.put("receiverLabel", capitalize(t.getDestType().toString()));
+    // map.put("label", capitalize(t.getAction()));
     return map;
   }
 
-  public static Query compileBulkTransactionQuery(List<Transaction> transactions) {
+  public static Query compileNodeTransactionQuery(List<Transaction> transactions) {
+    Map<String, Object> propMap = new HashMap<>();
+    List<Map<String, Object>> unwindList = new ArrayList<>(transactions.size());
+
+    for (Transaction transaction : transactions) {
+      Map<String, Object> sender = new HashMap<>();
+      Map<String, Object> receiver = new HashMap<>();
+      Map<String, Object> tx = new HashMap<>();
+
+      sender.put("label", capitalize(transaction.getOrigType().toString()));
+      sender.put("id", transaction.getIdOrig());
+
+      receiver.put("label", capitalize(transaction.getDestType().toString()));
+      receiver.put("id", transaction.getIdDest());
+
+      tx.put("label", capitalize(transaction.getAction()));
+      tx.put("id", String.format("tx-%s", transaction.getGlobalStep()));
+      tx.put("props", propsFromTx(transaction));
+
+      unwindList.add(sender);
+      unwindList.add(receiver);
+      unwindList.add(tx);
+    }
+
+    propMap.put("nodes", unwindList);
+    return new Query(Cypher.BULK_NODE_QUERY_STRING, propMap);
+  }
+
+  public static Query compileBulkTransactionQuery(String cypher, List<Transaction> transactions) {
     Map<String, Object> propMap = new HashMap<>();
     List<Map<String, Object>> unwindList = new ArrayList<>(transactions.size());
     for (Transaction transaction : transactions) {
       unwindList.add(propsFromTx(transaction));
     }
     propMap.put("txs", unwindList);
-    return new Query(Cypher.BULK_TRANSACTION_QUERY_STRING, propMap);
+    return new Query(cypher, propMap);
   }
 
   public static Query compilePropertyUpdateQuery(SuperActor actor) {
