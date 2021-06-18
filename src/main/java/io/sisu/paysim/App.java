@@ -1,29 +1,47 @@
 package io.sisu.paysim;
 
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Streams;
+import com.opencsv.CSVWriter;
+import com.opencsv.CSVWriterBuilder;
+import com.opencsv.bean.StatefulBeanToCsv;
+import com.opencsv.bean.StatefulBeanToCsvBuilder;
+import com.opencsv.exceptions.CsvDataTypeMismatchException;
+import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
+import org.apache.commons.text.translate.CsvTranslators;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Values;
 import org.paysim.IteratingPaySim;
 import org.paysim.PaySimState;
+import org.paysim.actors.Client;
 import org.paysim.actors.SuperActor;
 import org.paysim.base.Transaction;
+import org.paysim.identity.ClientIdentity;
 import org.paysim.parameters.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.*;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 public class App {
   protected static final Logger logger;
@@ -64,23 +82,91 @@ public class App {
         .addArgument("--" + Config.KEY_QUEUE_DEPTH)
         .help("PaySim queue depth")
         .setDefault(Config.DEFAULT_SIM_QUEUE_DEPTH);
+    parser.addArgument("--output").help("tbd").setDefault("./output");
     return parser;
+  }
+
+  public static void usage() {
+    System.err.println("usage: paysim-demo [command] [...]");
+    System.exit(1);
   }
 
   public static void main(String[] args) {
     ArgumentParser parser = newParser();
-    try {
-      Namespace ns = parser.parseArgs(args);
-      Config config = new Config(Optional.of(ns));
-      run(config);
-    } catch (ArgumentParserException e) {
-      parser.handleError(e);
-    } catch (Exception e) {
-      logger.error("Failed to run PaySim demo app!", e);
+
+    if (args.length == 0) {
+      usage();
+    }
+
+    switch (args[0]) {
+      case "bolt":
+        try {
+          Namespace ns = parser.parseArgs(Arrays.copyOfRange(args, 1, args.length));
+          Config config = new Config(Optional.of(ns));
+          runBolt(config);
+        } catch (ArgumentParserException e) {
+          parser.handleError(e);
+        } catch (Exception e) {
+          logger.error("Failed to run PaySim demo app!", e);
+        }
+      case "csv":
+        try {
+          Namespace ns = parser.parseArgs(Arrays.copyOfRange(args, 1, args.length));
+          Config config = new Config(Optional.of(ns));
+          runCsv(config);
+        } catch (ArgumentParserException e) {
+          parser.handleError(e);
+        } catch (Exception e) {
+          logger.error("Failed to run PaySim demo app!", e);
+        }
+        break;
+      default:
+        usage(); // dead
     }
   }
 
-  public static void run(Config config) {
+  public static void runCsv(Config config) throws IOException {
+    Path path = Paths.get("./csv-output");
+    if (!path.toFile().exists()) Files.createDirectory(path);
+
+    IteratingPaySim sim =
+            new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
+    sim.run();
+
+    try (OutputStreamWriter writer = new OutputStreamWriter(
+            new GZIPOutputStream(new FileOutputStream(
+                    path.resolve("transactions.csv.gz").toFile())))) {
+      StatefulBeanToCsv beanToCsv = new StatefulBeanToCsvBuilder<Transaction>(writer)
+              .withSeparator(',')
+              .build();
+      logger.info("Simulation started using PaySim v{}, load commencing...please, be patient! :-)",
+              PaySimState.PAYSIM_VERSION);
+      beanToCsv.write(sim);
+    } catch (Exception e) {
+      logger.error("crap", e);
+      sim.abort();
+    }
+
+    try (FileWriter writer = new FileWriter(path.resolve("clients.csv").toFile())) {
+      StatefulBeanToCsv beanToCsv = new StatefulBeanToCsvBuilder<Client>(writer)
+              .withSeparator(',')
+              .build();
+      beanToCsv.write(sim.getClients());
+    } catch (Exception e) {
+      logger.error("crap", e);
+    }
+
+    try (FileWriter writer = new FileWriter(path.resolve("merchants.csv").toFile())) {
+      StatefulBeanToCsv beanToCsv = new StatefulBeanToCsvBuilder<Client>(writer)
+              .withSeparator(',')
+              .build();
+      beanToCsv.write(sim.getMerchants());
+    } catch (Exception e) {
+      logger.error("crap", e);
+    }
+  }
+
+  public static void runBolt(Config config) {
     IteratingPaySim sim =
         new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
 

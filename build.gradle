@@ -16,7 +16,7 @@ allprojects {
 }
 
 dependencies {
-    implementation 'com.github.voutilad:paysim:2.5.0'
+    implementation 'org.paysim:paysim:2.6.0-SNAPSHOT'
     implementation 'org.neo4j.driver:neo4j-java-driver:4.3.1'
     implementation 'net.sourceforge.argparse4j:argparse4j:0.8.1'
     implementation 'org.slf4j:slf4j-simple:1.7.30'
