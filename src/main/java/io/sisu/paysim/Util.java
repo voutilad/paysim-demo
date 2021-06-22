@@ -26,15 +26,10 @@ public class Util {
     map.put("flaggedFraud", t.isFlaggedFraud());
     map.put("senderId", t.getIdOrig());
     map.put("receiverId", t.getIdDest());
-    // map.put("senderName", t.getNameOrig());
-    // map.put("receiverName", t.getNameDest());
     map.put("id", String.format("tx-%s", t.getGlobalStep()));
     map.put("ts", t.getStep()); // TODO: convert to datetime
     map.put("step", t.getStep());
     map.put("globalStep", t.getGlobalStep());
-    // map.put("senderLabel", capitalize(t.getOrigType().toString()));
-    // map.put("receiverLabel", capitalize(t.getDestType().toString()));
-    // map.put("label", capitalize(t.getAction()));
     return map;
   }
 

@@ -13,6 +13,7 @@ public class Config {
   protected static final boolean DEFAULT_USE_ENCRYPTION = false;
   protected static final int DEFAULT_BATCH_SIZE = 5_000;
   protected static final int DEFAULT_SIM_QUEUE_DEPTH = 50_000;
+  protected static final String DEFAULT_OUTPUT_DIR = ".";
 
   protected static final String KEY_PROPERTIES_FILE = "properties";
   protected static final String KEY_USERNAME = "username";
@@ -21,6 +22,7 @@ public class Config {
   protected static final String KEY_ENCRYPTION = "tls";
   protected static final String KEY_BATCH_SIZE = "batchSize";
   protected static final String KEY_QUEUE_DEPTH = "queueDepth";
+  protected static final String KEY_OUTPUT_DIR = "outputDir";
 
   public final String propertiesFile;
   public final String username;
@@ -29,6 +31,7 @@ public class Config {
   public final boolean useEncryption;
   public final int batchSize;
   public final int queueDepth;
+  public final String outputDirectory;
 
   Config(Optional<Namespace> configNamespace) {
     Namespace ns = configNamespace.orElse(new Namespace(new HashMap<>()));
@@ -39,6 +42,7 @@ public class Config {
     useEncryption = orBool(ns.get(KEY_ENCRYPTION), DEFAULT_USE_ENCRYPTION);
     batchSize = orInt(ns.get(KEY_BATCH_SIZE), DEFAULT_BATCH_SIZE);
     queueDepth = orInt(ns.get(KEY_QUEUE_DEPTH), DEFAULT_SIM_QUEUE_DEPTH);
+    outputDirectory = orString(ns.get(KEY_OUTPUT_DIR), DEFAULT_OUTPUT_DIR);
   }
 
   private static String orString(Object val, String defaultValue) {

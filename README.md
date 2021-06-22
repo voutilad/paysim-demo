@@ -1,39 +1,52 @@
 ![](https://github.com/voutilad/paysim-demo/workflows/Java%20CI/badge.svg)
 
-# Modeling 1st & 3rd Party Fraud with PaySim 2.1
-Create your own fraud network in your local Neo4j instance and explore a virtual mobile money network!
+# Modeling 1st & 3rd Party Fraud with PaySim 2.x
+Generate your own fraud network dataset with PaySim. Supports either directly building a Neo4j graph or dumping out representative CSV files for use in any system.
 
 ![](./paysim-2.1.0.png?raw=true)
 
 ## Requirements
 To build and run this demo, you'll need:
 * [Java 11 JDK](https://adoptopenjdk.net)
-* [Neo4j](https://neo4j.com/download) v4.2 (community or enterprise)
+* [Neo4j](https://neo4j.com/download) v4.2 (or newer) if directly loading a graph
 
 ### Known Issues ⚠️
 Before you get started, keep in mind the following caveats:
-  * Large simulations generate a lot of Neo4j write transactions. I've done little tuning of batch sizing, so make sure to allocate at least 2GB of JVM heap space as there's no error handling in the loader currently.
-  * You may get `org.neo4j.driver.exceptions.TransientException`s spit out into the console...don't panic and just ignore those for now 😉 it's due to my sloppy coding.
   * There's a `WARNING: An illegal reflective access operation has occurred` because of a 3rd party dependency in use
 
 ## Building & Running 🛠
 This project uses [Gradle](https://gradle.org/) and should work with your favorite Java IDE (if so desired) or you can just use the provided gradle wrapper scripts. They will download the appropriate version of Gradle for your platform and orchestrate things for you.
 
 ### Quick & Dirty with Gradle Run 🏃
-If you want to use all the following defaults, this is the easiest way to run the simulation and build the graph.
+If you want to use all the following defaults, this is the easiest way to run the simulation.
 
+#### Populating a local Neo4j database
 Assuming:
 - bolt uri: `neo4j://localhost:7687`
 - neo4j admin user is `neo4j` and password is `password`
 
 On Linux/*BSD/macOS:
 ```shell script
-$ ./gradlew run
+$ ./gradlew runBolt
 ```
 
 On Windows:
 ```shell script
-> .\gradlew.bat run
+> .\gradlew.bat runBolt
+```
+
+#### Dumping out local CSV files
+Assuming:
+- an output directory of `./csv-output/`
+
+On Linux/*BSD/macOS:
+```shell script
+$ ./gradlew runCsv
+```
+
+On Windows:
+```shell script
+> .\gradlew.bat runCsv
 ```
 
 ### Packaging to Run without Gradle
@@ -52,7 +65,7 @@ On Windows:
 In `./build/distributions` you'll find either the `.tar` or `.zip` file. You can unpack the contents wherever you want to "install" the demo app.
 
 ```
-burritogrande[paysim-demo-0.6.0]$ ls -alFh
+burritogrande[paysim-demo-0.8.0]$ ls -alFh
 total 8
 drwxr-xr-x  6 dave  staff   192B Feb  3 09:22 ./
 drwxr-xr-x  4 dave  staff   128B Feb  3 09:22 ../
@@ -65,28 +78,62 @@ drwxr-xr-x  9 dave  staff   288B Feb  3 09:22 paramFiles/
 Inside `bin/` you'll find a shell script and batch file for easily running the demo:
 
 ```
-burritogrande[paysim-demo-0.6.0]$ ./bin/paysim-demo -h
-usage: paysim-demo [-h] [--properties PROPERTIES] [--uri URI] [--username USERNAME] [--password PASSWORD] [--tls TLS]
-                   [--batchSize BATCHSIZE] [--queueDepth QUEUEDEPTH]
+$ bin/paysim-demo -h
+usage: paysim-demo [command] [args]
+valid commands:
+        bolt -- directly populate a remote database
+         csv -- dump data out into local csv files
+```
+
+Each command has slightly different, but some common, optional arguments:
+
+#### Bolt Mode
+```
+$ bin/paysim-demo bolt -h
+usage: paysim-demo bolt [-h] [--properties PROPERTIES] [--uri URI]
+                        [--username USERNAME] [--password PASSWORD]
+                        [--tls TLS] [--batchSize BATCHSIZE]
+                        [--queueDepth QUEUEDEPTH]
+
+Builds a virtual mobile money network graph in CSV
+
+named arguments:
+  -h, --help             show this help message and exit
+  --properties PROPERTIES
+                         PaySim properties file  (with  paramFiles adjacent
+                         in same dir) (default: PaySim.properties)
+  --uri URI              [Bolt]  Bolt   URI   to   target   Neo4j  database
+                         (default: bolt://localhost:7687)
+  --username USERNAME    [Bolt] neo4j username (default: neo4j)
+  --password PASSWORD    [Bolt] neo4j password (default: password)
+  --tls TLS              [Bolt] Use a TLS Bolt connection? (default: false)
+  --batchSize BATCHSIZE  transaction batch size (default: 5000)
+  --queueDepth QUEUEDEPTH
+                         PaySim queue depth (default: 50000)
+```
+
+#### CSV Mode
+```
+$ bin/paysim-demo csv -h
+usage: paysim-demo csv [-h] [--properties PROPERTIES]
+                       [--batchSize BATCHSIZE] [--queueDepth QUEUEDEPTH]
+                       [--outputDir OUTPUTDIR]
 
 Builds a virtual mobile money network graph in Neo4j
 
 named arguments:
   -h, --help             show this help message and exit
   --properties PROPERTIES
-                         PaySim properties file (with paramFiles adjacent in same dir) (default: PaySim.properties)
-  --uri URI              Bolt URI to target Neo4j database (default: bolt://localhost:7687)
-  --username USERNAME    (default: neo4j)
-  --password PASSWORD    (default: password)
-  --tls TLS              Ues a TLS Bolt connection? (default: false)
-  --batchSize BATCHSIZE  transaction batch size (default: 500)
+                         PaySim properties file  (with  paramFiles adjacent
+                         in same dir) (default: PaySim.properties)
+  --batchSize BATCHSIZE  transaction batch size (default: 5000)
   --queueDepth QUEUEDEPTH
-                         PaySim queue depth (default: 5000)
+                         PaySim queue depth (default: 50000)
+  --outputDir OUTPUTDIR  [Csv] Output directory (default: .)
 ```
 
 ## Querying the Graph
-
-...queries TBA :-)
+For some examples on how to interact with the PaySim graph in Neo4j, see [this post](https://www.sisu.io/posts/paysim-part3/) on my blog.
 
 ## License ⚖️
 The demo code and any packaged releases are provided under the GPLv3 (see [LICENSE](./LICENSE)). Copyright for my contributions most likely should be attributed to my employer, Neo4j Inc.

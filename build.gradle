@@ -4,8 +4,8 @@ plugins {
 }
 
 group 'io.sisu'
-version '0.7.0-SNAPSHOT'
-description 'Using PaySim, populates a graph in a target Neo4j graph database'
+version '0.8.0'
+description 'Using PaySim, populates a graph in a target Neo4j graph database or to CSV files'
 
 allprojects {
     repositories {
@@ -16,8 +16,8 @@ allprojects {
 }
 
 dependencies {
-    implementation 'org.paysim:paysim:2.6.0-SNAPSHOT'
-    implementation 'org.neo4j.driver:neo4j-java-driver:4.3.1'
+    implementation 'com.github.voutilad:paysim:2.7.0'
+    implementation 'org.neo4j.driver:neo4j-java-driver:4.3.2'
     implementation 'net.sourceforge.argparse4j:argparse4j:0.8.1'
     implementation 'org.slf4j:slf4j-simple:1.7.30'
 
@@ -26,7 +26,7 @@ dependencies {
 }
 
 application {
-    mainClassName = 'io.sisu.paysim.App'
+    mainClass.set("io.sisu.paysim.App")
 }
 
 task packagePaySimProperties(type: Copy) {
@@ -48,4 +48,16 @@ distTar.dependsOn(packagePaySimProperties)
 
 test {
     useJUnitPlatform()
+}
+
+task runCsv(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass.set("io.sisu.paysim.App")
+    args = ["csv"]
+}
+
+task runBolt(type: JavaExec) {
+    classpath = sourceSets.main.runtimeClasspath
+    mainClass.set("io.sisu.paysim.App")
+    args = ["bolt"]
 }

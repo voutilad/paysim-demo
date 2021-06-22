@@ -1,35 +1,31 @@
 package io.sisu.paysim;
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Streams;
-import com.opencsv.CSVWriter;
-import com.opencsv.CSVWriterBuilder;
 import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
-import com.opencsv.exceptions.CsvDataTypeMismatchException;
-import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
 import net.sourceforge.argparse4j.ArgumentParsers;
 import net.sourceforge.argparse4j.inf.ArgumentParser;
 import net.sourceforge.argparse4j.inf.ArgumentParserException;
 import net.sourceforge.argparse4j.inf.Namespace;
-import org.apache.commons.text.translate.CsvTranslators;
 import org.neo4j.driver.Driver;
 import org.neo4j.driver.Query;
 import org.neo4j.driver.Values;
 import org.paysim.IteratingPaySim;
 import org.paysim.PaySimState;
 import org.paysim.actors.Client;
+import org.paysim.actors.Merchant;
 import org.paysim.actors.SuperActor;
 import org.paysim.base.Transaction;
-import org.paysim.identity.ClientIdentity;
 import org.paysim.parameters.Parameters;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
-import java.nio.charset.Charset;
+import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Duration;
@@ -40,7 +36,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
+import java.util.stream.Stream;
 import java.util.zip.GZIPOutputStream;
 
 public class App {
@@ -54,25 +50,57 @@ public class App {
     logger = LoggerFactory.getLogger(App.class);
   }
 
-  private static ArgumentParser newParser() {
+  private static ArgumentParser newCsvParser() {
     ArgumentParser parser =
-        ArgumentParsers.newFor("paysim-demo")
+            ArgumentParsers.newFor("paysim-demo csv")
+                    .build()
+                    .defaultHelp(true)
+                    .description("Builds a virtual mobile money network graph in Neo4j");
+    parser
+            .addArgument("--" + Config.KEY_PROPERTIES_FILE)
+            .help("PaySim properties file (with paramFiles adjacent in same dir)")
+            .setDefault(Config.DEFAULT_PROPERTIES_FILE);
+    parser
+            .addArgument("--" + Config.KEY_BATCH_SIZE)
+            .help("transaction batch size")
+            .setDefault(Config.DEFAULT_BATCH_SIZE);
+    parser
+            .addArgument("--" + Config.KEY_QUEUE_DEPTH)
+            .help("PaySim queue depth")
+            .setDefault(Config.DEFAULT_SIM_QUEUE_DEPTH);
+    parser
+            .addArgument("--" + Config.KEY_OUTPUT_DIR)
+            .help("[Csv] Output directory")
+            .setDefault(Config.DEFAULT_OUTPUT_DIR);
+    return parser;
+
+  }
+
+    private static ArgumentParser newBoltParser() {
+    ArgumentParser parser =
+        ArgumentParsers.newFor("paysim-demo bolt")
             .build()
             .defaultHelp(true)
-            .description("Builds a virtual mobile money network graph in Neo4j");
+            .description("Builds a virtual mobile money network graph in CSV");
     parser
         .addArgument("--" + Config.KEY_PROPERTIES_FILE)
         .help("PaySim properties file (with paramFiles adjacent in same dir)")
         .setDefault(Config.DEFAULT_PROPERTIES_FILE);
     parser
         .addArgument("--" + Config.KEY_BOLT_URI)
-        .help("Bolt URI to target Neo4j database")
+        .help("[Bolt] Bolt URI to target Neo4j database")
         .setDefault(Config.DEFAULT_BOLT_URI);
-    parser.addArgument("--" + Config.KEY_USERNAME).setDefault(Config.DEFAULT_USERNAME);
-    parser.addArgument("--" + Config.KEY_PASSWORD).setDefault(Config.DEFAULT_PASSWORD);
+    parser
+        .addArgument("--" + Config.KEY_USERNAME)
+        .help("[Bolt] neo4j username")
+        .setDefault(Config.DEFAULT_USERNAME);
+    parser
+        .addArgument("--" + Config.KEY_PASSWORD)
+        .help("[Bolt] neo4j password")
+        .setDefault(Config.DEFAULT_PASSWORD);
     parser
         .addArgument("--" + Config.KEY_ENCRYPTION)
-        .help("Ues a TLS Bolt connection?")
+        .help("[Bolt] Use a TLS Bolt connection?")
         .setDefault(Config.DEFAULT_USE_ENCRYPTION);
     parser
         .addArgument("--" + Config.KEY_BATCH_SIZE)
@@ -82,88 +110,105 @@ public class App {
         .addArgument("--" + Config.KEY_QUEUE_DEPTH)
         .help("PaySim queue depth")
         .setDefault(Config.DEFAULT_SIM_QUEUE_DEPTH);
-    parser.addArgument("--output").help("tbd").setDefault("./output");
     return parser;
   }
 
   public static void usage() {
-    System.err.println("usage: paysim-demo [command] [...]");
-    System.exit(1);
+    System.err.println("usage: paysim-demo [command] [args]");
+    System.err.println("valid commands:");
+    System.err.println("\tbolt -- directly populate a remote database");
+    System.err.println("\t csv -- dump data out into local csv files");
   }
 
   public static void main(String[] args) {
-    ArgumentParser parser = newParser();
+    ArgumentParser parser = null;
 
-    if (args.length == 0) {
+    if (args.length < 1) {
       usage();
+      System.exit(1);
     }
 
     switch (args[0]) {
       case "bolt":
         try {
+          parser = newBoltParser();
           Namespace ns = parser.parseArgs(Arrays.copyOfRange(args, 1, args.length));
           Config config = new Config(Optional.of(ns));
           runBolt(config);
         } catch (ArgumentParserException e) {
           parser.handleError(e);
+          System.exit(1);
         } catch (Exception e) {
           logger.error("Failed to run PaySim demo app!", e);
+          System.exit(1);
         }
+        break;
       case "csv":
         try {
+          parser = newCsvParser();
           Namespace ns = parser.parseArgs(Arrays.copyOfRange(args, 1, args.length));
           Config config = new Config(Optional.of(ns));
           runCsv(config);
         } catch (ArgumentParserException e) {
           parser.handleError(e);
+          System.exit(1);
         } catch (Exception e) {
           logger.error("Failed to run PaySim demo app!", e);
+          System.exit(1);
         }
         break;
       default:
-        usage(); // dead
+        usage();
+        System.exit(1);
     }
   }
 
   public static void runCsv(Config config) throws IOException {
-    Path path = Paths.get("./csv-output");
+    Path path = Paths.get(config.outputDirectory).toRealPath();
     if (!path.toFile().exists()) Files.createDirectory(path);
 
+    logger.info("Writing csv output to {}", path);
+
     IteratingPaySim sim =
-            new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
+        new IteratingPaySim(new Parameters(config.propertiesFile), config.queueDepth);
     sim.run();
 
-    try (OutputStreamWriter writer = new OutputStreamWriter(
-            new GZIPOutputStream(new FileOutputStream(
-                    path.resolve("transactions.csv.gz").toFile())))) {
-      StatefulBeanToCsv beanToCsv = new StatefulBeanToCsvBuilder<Transaction>(writer)
-              .withSeparator(',')
-              .build();
-      logger.info("Simulation started using PaySim v{}, load commencing...please, be patient! :-)",
-              PaySimState.PAYSIM_VERSION);
+    try (OutputStreamWriter writer =
+        new OutputStreamWriter(
+            new GZIPOutputStream(
+                new FileOutputStream(path.resolve("transactions.csv.gz").toFile())))) {
+      StatefulBeanToCsv<Transaction> beanToCsv =
+          new StatefulBeanToCsvBuilder<Transaction>(writer).withSeparator(',').build();
+      logger.info(
+          "Simulation started using PaySim v{}, load commencing...please, be patient! :-)",
+          PaySimState.PAYSIM_VERSION);
       beanToCsv.write(sim);
     } catch (Exception e) {
       logger.error("crap", e);
       sim.abort();
     }
 
+    logger.info("Wrote transactions.");
+
     try (FileWriter writer = new FileWriter(path.resolve("clients.csv").toFile())) {
-      StatefulBeanToCsv beanToCsv = new StatefulBeanToCsvBuilder<Client>(writer)
-              .withSeparator(',')
-              .build();
+      StatefulBeanToCsv<Client> beanToCsv =
+          new StatefulBeanToCsvBuilder<Client>(writer).withSeparator(',').build();
       beanToCsv.write(sim.getClients());
     } catch (Exception e) {
       logger.error("crap", e);
     }
 
+    logger.info("Wrote clients.");
+
     try (FileWriter writer = new FileWriter(path.resolve("merchants.csv").toFile())) {
-      StatefulBeanToCsv beanToCsv = new StatefulBeanToCsvBuilder<Client>(writer)
-              .withSeparator(',')
-              .build();
+      StatefulBeanToCsv<Merchant> beanToCsv =
+          new StatefulBeanToCsvBuilder<Merchant>(writer).withSeparator(',').build();
       beanToCsv.write(sim.getMerchants());
     } catch (Exception e) {
       logger.error("crap", e);
     }
+
+    logger.info("Wrote merchants.");
   }
 
   public static void runBolt(Config config) {
@@ -180,7 +225,9 @@ public class App {
 
       try {
         sim.run();
-        logger.info("Simulation started using PaySim v{}, load commencing...please, be patient! :-)", PaySimState.PAYSIM_VERSION);
+        logger.info(
+            "Simulation started using PaySim v{}, load commencing...please, be patient! :-)",
+            PaySimState.PAYSIM_VERSION);
         // Batch up Queries based on our Transaction stream for execution
         sim.forEachRemaining(
             t -> {
@@ -188,8 +235,12 @@ public class App {
 
               if (batch.size() >= config.batchSize) {
                 Database.execute(driver, Util.compileNodeTransactionQuery(batch));
-                Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_PERFORMED_QUERY_STRING, batch));
-                Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_TO_QUERY_STRING, batch));
+                Database.execute(
+                    driver,
+                    Util.compileBulkTransactionQuery(Cypher.BULK_TX_PERFORMED_QUERY_STRING, batch));
+                Database.execute(
+                    driver,
+                    Util.compileBulkTransactionQuery(Cypher.BULK_TX_TO_QUERY_STRING, batch));
                 atom.addAndGet(batch.size());
                 batch.clear();
               }
@@ -198,8 +249,11 @@ public class App {
         // Anything left over?
         if (batch.size() > 0) {
           Database.execute(driver, Util.compileNodeTransactionQuery(batch));
-          Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_PERFORMED_QUERY_STRING, batch));
-          Database.execute(driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_TO_QUERY_STRING, batch));
+          Database.execute(
+              driver,
+              Util.compileBulkTransactionQuery(Cypher.BULK_TX_PERFORMED_QUERY_STRING, batch));
+          Database.execute(
+              driver, Util.compileBulkTransactionQuery(Cypher.BULK_TX_TO_QUERY_STRING, batch));
           atom.addAndGet(batch.size());
         }
         logger.info(String.format("[loaded %d PaySim transactions]", atom.get()));
@@ -222,14 +276,14 @@ public class App {
 
         logger.info("Setting any extra node properties for Merchants and Banks...");
         List<SuperActor> allActors =
-            Streams.concat(sim.getMerchants().stream(), sim.getBanks().stream())
+            Stream.concat(sim.getMerchants().stream(), sim.getBanks().stream())
                 .collect(Collectors.toList());
         Lists.partition(allActors, config.batchSize)
             .forEach(
                 chunk -> {
                   List<Query> queries =
                       chunk.stream()
-                          .map(actor -> Util.compilePropertyUpdateQuery(actor))
+                          .map(Util::compilePropertyUpdateQuery)
                           .collect(Collectors.toList());
                   Database.executeBatch(driver, queries);
                 });

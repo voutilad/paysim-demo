@@ -107,4 +107,4 @@ gradle-app.setting
 # gradle/wrapper/gradle-wrapper.properties
 .vagrant/
 target/
-*.iml
+*.imlconfig/
