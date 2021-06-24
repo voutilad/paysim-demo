@@ -22,7 +22,7 @@ public class Cypher {
     // Identity Types
     "CREATE INDEX IF NOT EXISTS FOR (e:Email) ON (e.email)",
     "CREATE INDEX IF NOT EXISTS FOR (s:SSN) ON (s.ssn)",
-    "CREATE CONSTINDEXRAINT IF NOT EXISTS FOR (p:Phone) ON (p.phoneNumber)",
+    "CREATE INDEX IF NOT EXISTS FOR (p:Phone) ON (p.phoneNumber)",
 
     // Various Indices
     "CREATE INDEX IF NOT EXISTS FOR (t:Transaction) ON (t.globalStep)",
