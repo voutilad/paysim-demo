@@ -61,10 +61,6 @@ public class App {
             .help("PaySim properties file (with paramFiles adjacent in same dir)")
             .setDefault(Config.DEFAULT_PROPERTIES_FILE);
     parser
-            .addArgument("--" + Config.KEY_BATCH_SIZE)
-            .help("transaction batch size")
-            .setDefault(Config.DEFAULT_BATCH_SIZE);
-    parser
             .addArgument("--" + Config.KEY_QUEUE_DEPTH)
             .help("PaySim queue depth")
             .setDefault(Config.DEFAULT_SIM_QUEUE_DEPTH);

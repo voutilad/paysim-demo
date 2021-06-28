@@ -4,7 +4,7 @@ plugins {
 }
 
 group 'io.sisu'
-version '0.8.1'
+version '0.8.2'
 description 'Using PaySim, populates a graph in a target Neo4j graph database or to CSV files'
 
 allprojects {
