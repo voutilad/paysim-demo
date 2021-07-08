@@ -77,7 +77,6 @@ public class Cypher {
             "  CREATE (t)-[:TO]->(r)",
           });
 
-
   public static final String THREAD_TRANSACTIONS_IN_BATCH =
       String.join(
           "\n",
